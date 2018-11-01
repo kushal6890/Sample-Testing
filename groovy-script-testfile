@@ -1,0 +1,54 @@
+pipeline {
+    agent any
+    stages {
+        stage('Get file from corpdmz.staples.com') {
+            steps {
+                echo "copying from corpdmz.staples.com"
+                withCredentials([usernamePassword(credentialsId:'corp-sftp',usernameVariable:'USERNAME',passwordVariable:'PASSWORD')]){
+                sh "whoami && cd ${WORKSPACE} && sftp://${USERNAME}:${PASSWORD}@corpdmz.staples.com -e \"put -rp /workspace /files/continuous-deploy-test/2018_10_08_cd_test.zip} put /files/continuous-deploy-test/2018_10_08_cd_test.zip};bye\""
+               
+              }
+            }   
+        } 
+        stage('upload to artifactory') {
+            steps {
+                echo "Uploading to artifactory"
+                withCredentials([usernamePassword(credentialsId:'cicd-publisher',usernameVariable:'ARTI_USERNAME',passwordVariable:'ARTI_PASSWORD')]){ 
+                sh "curl -u ${ARTI_USERNAME}:${ARTI_PASSWORD}  -T ${WORKSPACE}/2018_10_08_cd_test.zip \"http://zrepo.staples.com/artifactory/craftworks-artifacts-local/2018_10_08_cd_test.zip\" "
+            }
+            }
+        }        
+        
+    }
+}
+
+
+
+
+
+pipeline {
+    agent any
+    stages {
+        stage('Get file from corpdmz.staples.com') {
+            steps {
+                echo "copying from corpdmz.staples.com"
+                withCredentials([usernamePassword(credentialsId:'corp-sftp',usernameVariable:'USERNAME',passwordVariable:'PASSWORD')]){
+                sh  """cd ${WORKSPACE} && sshpass -p ${PASSWORD} sftp -oBatchMode=no -b - ${USERNAME}@corpdmz.staples.com<<-EOF
+                cd /files/continuous-deploy-test
+                get 2018_10_08_cd_test.zip
+                bye
+                EOF"""
+            }
+            }   
+        }
+         stage('upload to artifactory') {
+            steps {
+                echo "Uploading to artifactory"
+                withCredentials([usernamePassword(credentialsId:'cicd-publisher',usernameVariable:'ARTI_USERNAME',passwordVariable:'ARTI_PASSWORD')]){ 
+                sh "curl -u ${ARTI_USERNAME}:${ARTI_PASSWORD}  -X PUT -T ${WORKSPACE}/2018_10_08_cd_test.zip \"http://zrepo.staples.com/artifactory/craftworks-artifacts-local/2018_10_08_cd_test.zip\" "
+            }
+            }
+        }    
+        
+    }
+}
